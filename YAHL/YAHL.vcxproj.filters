@@ -18,9 +18,6 @@
     <ClCompile Include="src\hook_example.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\YAHL\impl\Detour86.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\dllmain.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
