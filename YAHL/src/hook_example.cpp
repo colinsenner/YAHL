@@ -37,7 +37,7 @@ float hSecretNumber(YAHL::Detour &detour) {
 }
 
 // This case is a bit special, our original function is stdcall
-int hCallConvention(YAHL::Detour &detour, void*, int a, int b) {
+int hCallConvention(YAHL::Detour &detour, void* returnAddress, int a, int b) {
     auto sum = detour.CallOriginal<fpCallConvention>(a, b);
 
     std::cout << "I'm a hooked stdcall function. I called the original and got back " << sum << std::endl;
@@ -81,11 +81,11 @@ void Example(void *hDll) {
     //
     // Hook the CallConvention function
     //
-
     auto pCallConvention = (fpCallConvention)GetProcAddress(GetModuleHandle(NULL), "_CallConvention@8");
 
     YAHL::Detour detour4(pCallConvention, &hCallConvention, 9);
 
+    BREAK_ON_DEBUGGER;
     if (!detour4.Enable()) {
         std::cout << "Problem enabling detour4!\n";
     }
