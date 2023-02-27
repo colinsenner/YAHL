@@ -18,9 +18,6 @@
     <ClCompile Include="src\hook_example.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\YAHL\impl\Detour86.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\dllmain.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -33,6 +30,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\hook_example.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\YAHL\impl\DetourCommon.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

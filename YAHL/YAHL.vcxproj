@@ -20,13 +20,13 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\dllmain.cpp" />
-    <ClCompile Include="src\YAHL\impl\Detour86.cpp" />
     <ClCompile Include="src\hook_example.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\hook_example.h" />
     <ClInclude Include="src\YAHL\impl\Detour86.h" />
     <ClInclude Include="src\YAHL\Detour.h" />
+    <ClInclude Include="src\YAHL\impl\DetourCommon.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
@@ -106,6 +106,7 @@
       <SDLCheck>true</SDLCheck>
       <BasicRuntimeChecks>UninitializedLocalUsageCheck</BasicRuntimeChecks>
       <BufferSecurityCheck>false</BufferSecurityCheck>
+      <SupportJustMyCode>false</SupportJustMyCode>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -140,6 +141,7 @@
       <SDLCheck>true</SDLCheck>
       <BasicRuntimeChecks>UninitializedLocalUsageCheck</BasicRuntimeChecks>
       <BufferSecurityCheck>false</BufferSecurityCheck>
+      <SupportJustMyCode>false</SupportJustMyCode>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
