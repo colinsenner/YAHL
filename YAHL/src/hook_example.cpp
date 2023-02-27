@@ -7,30 +7,41 @@ struct Life {
     int a;
 };
 
-// Calling convention for this function
+// Function pointers for the functions we're hooking
+// We provide these so the compiler knows what value is
+// returned from the original function
 using fpIsCheating = bool(__cdecl *)();
 using fpMeaningOfLife = void(__cdecl *)(Life &, int);
 using fpSecretNumber = float (*)();
+using fpCallConvention = int (*)(int, int);
 
 // Don't call the original and return false
 bool hIsCheating(YAHL::Detour &detour) {
     return false;
 }
 
-// Change the a argument to be 42
+// Change argument to the original to be the true meaning of life, the universe, and everything
 void hMeaningOfLife(YAHL::Detour &detour, Life &life, int a) {
     detour.CallOriginal<fpMeaningOfLife>(life, 42);
-
     return;
 }
 
-// Get the secret number from the client and return a modified version of it
+// Steal the secret number from the client and return a modified version of it
 float hSecretNumber(YAHL::Detour &detour) {
     auto secretNumber = detour.CallOriginal<fpSecretNumber>();
 
-    std::cout << "Obtained the secret number: " << secretNumber << " I'm going to add 1 to it and return it instead..." << std::endl;
+    std::cout << "Obtained the secret number: " << secretNumber << " I'm going to add 1 to it and return it instead..."
+              << std::endl;
 
     return secretNumber + 1;
+}
+
+// This case is a bit special, our original function is stdcall
+int hCallConvention(YAHL::Detour &detour, void*, int a, int b) {
+    auto sum = detour.CallOriginal<fpCallConvention>(a, b);
+
+    std::cout << "I'm a hooked stdcall function. I called the original and got back " << sum << std::endl;
+    return sum + 1;
 }
 
 void Example(void *hDll) {
@@ -65,6 +76,18 @@ void Example(void *hDll) {
 
     if (!detour3.Enable()) {
         std::cout << "Problem enabling detour3!\n";
+    }
+
+    //
+    // Hook the CallConvention function
+    //
+
+    auto pCallConvention = (fpCallConvention)GetProcAddress(GetModuleHandle(NULL), "_CallConvention@8");
+
+    YAHL::Detour detour4(pCallConvention, &hCallConvention, 9);
+
+    if (!detour4.Enable()) {
+        std::cout << "Problem enabling detour4!\n";
     }
 
     while (true) {

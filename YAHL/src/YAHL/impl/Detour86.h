@@ -18,6 +18,11 @@ enum class AsmIns86 : uint8_t {
     Esp = 0xC4
 };
 
+#define BREAK_ON_DEBUGGER                                                                                              \
+    if (IsDebuggerPresent()) {                                                                                         \
+        DebugBreak();                                                                                                  \
+    }
+
 class Detour86 {
   public:
     Detour86(void *originalFunction, void *hookFunction, size_t numBytesToHook)
@@ -27,13 +32,15 @@ class Detour86 {
     Detour86(const Detour86 &) = delete; // Copy constructor
     Detour86(Detour86 &&) = delete;      // Move constructor
 
-    ~Detour86() {
-        Disable();
-    }
+    ~Detour86() { Disable(); }
 
     bool Enable() {
         if (enabled_) {
             return true;
+        }
+
+        if (!oFunc_ || !hFunc_) {
+            return false;
         }
 
         // Ensure there's enough bytes to hook
