@@ -7,24 +7,28 @@ struct Life {
     int meaning = 42;
 };
 
-// Ensure this function doesn't get called
-DLLEXPORT bool Func1() {
-    bool isCheating = true;
-    std::cout << "[Func1] Player is cheating!" << std::endl;
-    return isCheating;
+// Make this function return false instead
+DLLEXPORT bool IsCheating() {
+    std::cout << "Checking if the player is cheating...\n";
+    return true;
 }
 
-// Ensure this gets called, but we get first chance at it
-DLLEXPORT void Func2(Life &life, int a) {
-    std::cout << "[Func2] Updating the meaning of life to " << a << std::endl;
+// Ensure this gets called, but change the a argument to be 42
+DLLEXPORT void MeaningOfLife(Life &life, int a) {
+    std::cout << "[MeaningOfLife] Updating the meaning of life to " << a << std::endl;
 }
 
 int main(int argc, char *argv[]) {
     Life life{};
 
     while (true) {
-        Func1();
-        Func2(life, 42);
+        if (IsCheating()) {
+            std::cout << "[IsCheating] Player is cheating!" << std::endl;
+        } else {
+            std::cout << "[IsCheating] Player is NOT cheating!" << std::endl;
+        }
+
+        MeaningOfLife(life, 1);
         Sleep(1000);
     }
 
