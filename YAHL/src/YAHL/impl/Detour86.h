@@ -40,7 +40,7 @@ template <typename T> class Detour86 {
           stub_(nullptr) {}
 
     bool Enable() {
-        if (numBytesToHook_ > originalBytes_.max_size()) {
+        if (numBytesToHook_ < 5 || numBytesToHook_ > originalBytes_.max_size()) {
             return false;
         }
 
@@ -69,17 +69,14 @@ template <typename T> class Detour86 {
 
   private:
     void SaveOriginalBytes() {
-        BREAK_ON_DEBUGGER;
         for (size_t i = 0; i < numBytesToHook_; ++i) {
             uint8_t byte = *(uint8_t*)((uint8_t*)originalFunction_ + i);
             originalBytes_.push_back(byte);
         }
-        //memcpy(originalBytes_.data(), originalFunction_, numBytesToHook_); 
     }
 
     bool CreateStub() {
         stub_ = (uint8_t *)VirtualAlloc(NULL, stubSize, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
-
         return stub_ != NULL;
     }
 

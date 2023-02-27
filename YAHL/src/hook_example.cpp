@@ -3,28 +3,39 @@
 #include <Windows.h>
 #include <iostream>
 
+struct Life {
+    int a;
+};
+
 // Calling convention for this function
-using fpFunc1 = bool(__cdecl *)();
+using fpIsCheating = bool(__cdecl *)();
+using fpMeaningOfLife = void(__cdecl *)(Life&, int);
 
-// Ensure this function doesn't get called
-bool hFunc1(YAHL::Detour86<fpFunc1> *detour) {
-    bool isCheating = false;
-    std::cout << "[Func1] Player is NOT cheating!" << std::endl;
-    
-    //detour->CallOriginal();
+// Don't call the original and return false
+bool hIsCheating(YAHL::Detour86<fpIsCheating> *detour) {
+    return false;
+}
 
-    return isCheating;
+// Change the a argument to be 42
+void hMeaningOfLife(YAHL::Detour86<fpMeaningOfLife> *detour, Life &life, int a) {
+    return detour->CallOriginal(life, 42);
 }
 
 void Example(void *hDll) {
-    void *pFunc1 = GetProcAddress(GetModuleHandle(NULL), "Func1");
+    fpIsCheating pIsCheating = (fpIsCheating)GetProcAddress(GetModuleHandle(NULL), "IsCheating");
+    YAHL::Detour86<fpIsCheating> detour1(pIsCheating, &hIsCheating, 7);
+    std::cout << "IsCheatingDetour: " << &detour1 << std::endl;
 
-    YAHL::Detour86<fpFunc1> detour(pFunc1, &hFunc1, 6);
+    fpMeaningOfLife pMeaningOfLife = (fpMeaningOfLife)GetProcAddress(GetModuleHandle(NULL), "MeaningOfLife");
+    YAHL::Detour86<fpMeaningOfLife> detour2(pMeaningOfLife, &hMeaningOfLife, 9);
+    std::cout << "MeaningOfLifeDetour: " << &detour2 << std::endl;
 
-    std::cout << "Detour object: " << &detour << std::endl;
+    if (!detour1.Enable()) {
+        std::cout << "Problem enabling detour1!\n";
+    }
 
-    if (!detour.Enable()) {
-        std::cout << "Problem enabling detour!\n";
+    if (!detour2.Enable()) {
+        std::cout << "Problem enabling detour2!\n";
     }
 
     while (true) {
