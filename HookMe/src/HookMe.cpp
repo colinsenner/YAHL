@@ -1,4 +1,5 @@
 #include <Windows.h>
+#include <cstdlib>
 #include <iostream>
 
 #define DLLEXPORT extern "C" __declspec(dllexport, noinline)
@@ -18,14 +19,23 @@ DLLEXPORT void MeaningOfLife(Life &life, int a) {
     std::cout << "[MeaningOfLife] Updating the meaning of life to " << a << std::endl;
 }
 
+// Generate an unknowable secret number
+DLLEXPORT float SecretRandomNumber() {
+    float secretNumber = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
+    
+    return secretNumber;
+}
+
 int main(int argc, char *argv[]) {
+    srand((unsigned int)time(NULL));
+
     Life life{};
 
     while (true) {
         if (IsCheating()) {
-            std::cout << "[IsCheating] Player is cheating!" << std::endl;
+            std::cout << "[IsCheating   ] Player is cheating!" << std::endl;
         } else {
-            std::cout << "[IsCheating] Player is NOT cheating!" << std::endl;
+            std::cout << "[IsCheating   ] Player is NOT cheating!" << std::endl;
         }
 
         MeaningOfLife(life, 1);

@@ -33,14 +33,19 @@ template <typename T> void serialize(std::vector<uint8_t> &v, const T &obj) {
     std::memcpy(&v[size], &obj, sizeof(T));
 }
 
-template <typename T> class Detour86 {
+class Detour86 {
   public:
     Detour86(void *originalFunction, void *hookFunction, size_t numBytesToHook)
-        : originalFunction_(originalFunction), hookFunction_(hookFunction), numBytesToHook_(numBytesToHook),
+        : oFunc_(originalFunction), hFunc_(hookFunction), numBytesToHook_(numBytesToHook),
           stub_(nullptr) {}
 
     bool Enable() {
-        if (numBytesToHook_ < 5 || numBytesToHook_ > originalBytes_.max_size()) {
+        if (enabled_) {
+            return true;
+        }
+
+        // Ensure there's enough bytes to hook
+        if (numBytesToHook_ < 5) {
             return false;
         }
 
@@ -50,48 +55,99 @@ template <typename T> class Detour86 {
             return false;
         }
 
-        if (!WriteStub()) {
-            return false;
-        }
+        WriteStub();
 
         if (!WriteTrampoline()) {
+            DestroyStub();
             return false;
         }
 
-        std::cout << "Hook enabled!\n";
+        enabled_ = true;
         return true;
     }
 
-    template <typename... Args> void CallOriginal(Args &&...args) {
-        // std::invoke(static_cast<T<Args...>>(originalFunctionCall_), std::forward<Args>(args)...);
-        std::invoke(callable_, std::forward<Args>(args)...);
+    bool Disable() {
+        if (!enabled_) {
+            return true;
+        }
+
+        if (!RestoreOriginalBytes()) {
+            return false;
+        }
+
+        if (!DestroyStub()) {
+            return false;
+        }
+
+        enabled_ = false;
+        return true;
+    }
+
+    template <typename... Args> auto CallOriginal(Args &&...args) {
+        using Callable = void (*)(Args...); // Create a callable type to cast the address we stored
+
+        // Call the address at the end of our stub where we copied the original bytes
+        return std::invoke(std::forward<Callable>((Callable)originalBytesAddress_), std::forward<Args>(args)...);
     }
 
   private:
     void SaveOriginalBytes() {
+        originalBytes_.clear();
+        originalBytes_.reserve(numBytesToHook_);
+
         for (size_t i = 0; i < numBytesToHook_; ++i) {
-            uint8_t byte = *(uint8_t*)((uint8_t*)originalFunction_ + i);
+            auto byte = *(uint8_t *)((uint8_t *)oFunc_ + i);
             originalBytes_.push_back(byte);
         }
     }
 
-    bool CreateStub() {
-        stub_ = (uint8_t *)VirtualAlloc(NULL, stubSize, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
-        return stub_ != NULL;
+    bool RestoreOriginalBytes() noexcept {
+        DWORD old_protect;
+
+        // Make the page writable
+        auto success = VirtualProtect((void *)oFunc_, numBytesToHook_, PAGE_EXECUTE_READWRITE, &old_protect);
+
+        if (!success) {
+            return false;
+        }
+
+        std::memcpy(oFunc_, originalBytes_.data(), originalBytes_.size());
+
+        // Restore original page permissions
+        success = VirtualProtect((void *)oFunc_, numBytesToHook_, old_protect, &old_protect);
+
+        return success != 0;
     }
 
-    bool WriteStub() {
+    bool CreateStub() {
+        stub_ = (uint8_t *)VirtualAlloc(NULL, stubSize, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+        return stub_;
+    }
+
+    bool DestroyStub() {
+        auto success = VirtualFree(stub_, 0, MEM_RELEASE);
+
+        if (!success) {
+            return false;
+        }
+
+        stub_ = nullptr;
+        return true;
+    }
+
+    void WriteStub() {
         std::vector<uint8_t> ins{}; // Assembly instructions to write to the stub
 
-        serialize(ins, AsmIns::Int3);
+        // serialize(ins, AsmIns::Int3);
 
-        // Push the detour pointer to the function's arguments
+        // Push an additional argument to our hook
+        // Each hook function gets a Detour* as it's first argument
         serialize(ins, AsmIns::Push);
         serialize(ins, this);
 
         // Call the hooked function
         serialize(ins, AsmIns::Call);
-        auto disp = GetDisplacement(stub_, ins.size(), (uint8_t *)hookFunction_);
+        auto disp = GetDisplacement(stub_, ins.size(), (uint8_t *)hFunc_);
         serialize(ins, disp);
 
         // Remove the additional instruction we passed to the hook function (push &detour)
@@ -102,23 +158,22 @@ template <typename T> class Detour86 {
         // Return at stub to get back to the original caller of the function
         serialize(ins, AsmIns::Ret);
 
-        // Write the original bytes at the end of the stub,
-        // These bytes are called directly when the method CallOriginal(...) is invoked
-        callable_ = (T)(stub_ + ins.size()); // Save where we've written the code to call the original function
+        // Store the address of this location so when we invoke CallOriginal(...) it calls here
+        // To avoid infinite loops when the hook calls the original code
+        originalBytesAddress_ = (stub_ + ins.size());
 
+        // Write the original bytes at the end of the stub,
         for (const auto &byte : originalBytes_) {
             serialize(ins, byte);
         }
 
         // Jump back to the original function
         serialize(ins, AsmIns::Jmp);
-        disp = GetDisplacement(stub_, ins.size(), (uint8_t *)originalFunction_ + numBytesToHook_);
+        disp = GetDisplacement(stub_, ins.size(), (uint8_t *)oFunc_ + numBytesToHook_);
         serialize(ins, disp);
 
         // Write the instructions to the stub
         std::memcpy(stub_, ins.data(), ins.size());
-
-        return true;
     }
 
     bool WriteTrampoline() {
@@ -126,11 +181,15 @@ template <typename T> class Detour86 {
         DWORD old_protect;
 
         // Make the page writable
-        VirtualProtect((void *)originalFunction_, numBytesToHook_, PAGE_EXECUTE_READWRITE, &old_protect);
+        auto success = VirtualProtect((void *)oFunc_, numBytesToHook_, PAGE_EXECUTE_READWRITE, &old_protect);
+
+        if (!success) {
+            return false;
+        }
 
         // Write the jump to the stub
         serialize(ins, AsmIns::Jmp);
-        auto disp = GetDisplacement((uint8_t *)originalFunction_, ins.size(), stub_);
+        auto disp = GetDisplacement((uint8_t *)oFunc_, ins.size(), stub_);
         serialize(ins, disp);
 
         // If there are additional bytes to write, write nops as padding
@@ -140,10 +199,14 @@ template <typename T> class Detour86 {
         }
 
         // Write the instructions to the stub
-        std::memcpy(originalFunction_, ins.data(), ins.size());
+        std::memcpy(oFunc_, ins.data(), ins.size());
 
         // Restore original page permissions
-        VirtualProtect((void *)originalFunction_, numBytesToHook_, old_protect, &old_protect);
+        success = VirtualProtect((void *)oFunc_, numBytesToHook_, old_protect, &old_protect);
+
+        if (!success) {
+            return false;
+        }
 
         return true;
     }
@@ -158,16 +221,22 @@ template <typename T> class Detour86 {
     }
 
   private:
-    void *originalFunction_ = nullptr;
-    void *hookFunction_ = nullptr;
+    void *oFunc_ = nullptr;
+    void *hFunc_ = nullptr;
     size_t numBytesToHook_ = 0;
+
+    bool enabled_ = false;
 
     // Address of our allocated stub
     uint8_t *stub_ = nullptr;
 
     // Bytes we overwrite with our trampoline
     std::vector<uint8_t> originalBytes_{};
-    T callable_;
+
+    // We store the prologue bytes of the original function at the end of our stub
+    // To avoid a circular loop where inside our hook we call the original function (which would call our hook again)
+    // we can store the address and cast this to a callable so we can std::invoke it
+    void *originalBytesAddress_ = nullptr;
 };
 
 } // namespace YAHL

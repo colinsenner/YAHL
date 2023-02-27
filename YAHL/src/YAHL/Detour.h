@@ -4,8 +4,7 @@
 namespace YAHL {
 
 #ifdef WIN32 // 32-bit
-template <class T> 
-using Detour = YAHL::Detour86<T>;
+using Detour = YAHL::Detour86;
 #else // 64-bit
 
 #endif
