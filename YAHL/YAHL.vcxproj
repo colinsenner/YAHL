@@ -26,6 +26,7 @@
     <ClInclude Include="src\hook_example.h" />
     <ClInclude Include="src\YAHL\impl\Detour86.h" />
     <ClInclude Include="src\YAHL\Detour.h" />
+    <ClInclude Include="src\YAHL\impl\DetourCommon.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

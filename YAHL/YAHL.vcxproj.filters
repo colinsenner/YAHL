@@ -32,5 +32,8 @@
     <ClInclude Include="src\hook_example.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\YAHL\impl\DetourCommon.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

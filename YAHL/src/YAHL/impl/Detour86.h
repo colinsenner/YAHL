@@ -1,14 +1,13 @@
 #pragma once
+#include "DetourCommon.h"
 #include <Windows.h>
 #include <functional>
 #include <iostream>
 #include <vector>
 
-namespace YAHL {
+namespace YAHL::Impl {
 
-const uint32_t stubSize = 256;
-
-enum class AsmIns : uint8_t {
+enum class AsmIns86 : uint8_t {
     Int3 = 0xCC,
     Push = 0x68,
     Call = 0xE8,
@@ -19,28 +18,18 @@ enum class AsmIns : uint8_t {
     Esp = 0xC4
 };
 
-#define BREAK_ON_DEBUGGER                                                                                              \
-    if (IsDebuggerPresent()) {                                                                                         \
-        DebugBreak();                                                                                                  \
-    }
-
-template <typename T> void serialize(std::vector<uint8_t> &v, const T &obj) {
-    static_assert(std::is_trivially_copyable<T>::value, "Can only serialize trivially copyable objects.");
-
-    auto size = v.size();
-    v.resize(size + sizeof(T));
-
-    std::memcpy(&v[size], &obj, sizeof(T));
-}
-
 class Detour86 {
   public:
     Detour86(void *originalFunction, void *hookFunction, size_t numBytesToHook)
-        : oFunc_(originalFunction), hFunc_(hookFunction), numBytesToHook_(numBytesToHook),
-          stub_(nullptr) {}
+        : enabled_(false), oFunc_(originalFunction), hFunc_(hookFunction), numBytesToHook_(numBytesToHook),
+          stub_(nullptr), originalBytesAddress_(nullptr) {}
 
-    Detour86(const Detour86 &) = delete;    // Copy constructor
-    Detour86(Detour86 &&) = delete;         // Move constructor
+    Detour86(const Detour86 &) = delete; // Copy constructor
+    Detour86(Detour86 &&) = delete;      // Move constructor
+
+    ~Detour86() {
+        Disable();
+    }
 
     bool Enable() {
         if (enabled_) {
@@ -141,21 +130,21 @@ class Detour86 {
 
         // Push an additional argument to our hook
         // Each hook function gets a Detour* as it's first argument
-        serialize(ins, AsmIns::Push);
+        serialize(ins, AsmIns86::Push);
         serialize(ins, this);
 
         // Call the hooked function
-        serialize(ins, AsmIns::Call);
+        serialize(ins, AsmIns86::Call);
         auto disp = GetDisplacement(stub_, ins.size(), (uint8_t *)hFunc_);
         serialize(ins, disp);
 
         // Remove the additional instruction we passed to the hook function (push &detour)
-        serialize(ins, AsmIns::Add);
-        serialize(ins, AsmIns::Esp);
+        serialize(ins, AsmIns86::Add);
+        serialize(ins, AsmIns86::Esp);
         serialize(ins, (uint8_t)4);
 
         // Return at stub to get back to the original caller of the function
-        serialize(ins, AsmIns::Ret);
+        serialize(ins, AsmIns86::Ret);
 
         // Store the address of this location so when we invoke CallOriginal(...) it calls here
         // To avoid infinite loops when the hook calls the original code
@@ -167,7 +156,7 @@ class Detour86 {
         }
 
         // Jump back to the original function
-        serialize(ins, AsmIns::Jmp);
+        serialize(ins, AsmIns86::Jmp);
         disp = GetDisplacement(stub_, ins.size(), (uint8_t *)oFunc_ + numBytesToHook_);
         serialize(ins, disp);
 
@@ -187,14 +176,14 @@ class Detour86 {
         }
 
         // Write the jump to the stub
-        serialize(ins, AsmIns::Jmp);
+        serialize(ins, AsmIns86::Jmp);
         auto disp = GetDisplacement((uint8_t *)oFunc_, ins.size(), stub_);
         serialize(ins, disp);
 
         // If there are additional bytes to write, write nops as padding
         int bytesLeftOver = numBytesToHook_ - ins.size();
         for (int i = 0; i < bytesLeftOver; ++i) {
-            serialize(ins, AsmIns::Nop);
+            serialize(ins, AsmIns86::Nop);
         }
 
         // Write the instructions to the stub
@@ -220,23 +209,23 @@ class Detour86 {
     }
 
   private:
-    bool enabled_{false};
+    bool enabled_;
 
-    void *oFunc_{nullptr};
-    void *hFunc_{nullptr};
+    void *oFunc_;
+    void *hFunc_;
 
-    size_t numBytesToHook_{0};
+    size_t numBytesToHook_;
 
     // Address of our allocated stub
-    uint8_t *stub_{nullptr};
-
-    // Bytes we overwrite with our trampoline
-    std::vector<uint8_t> originalBytes_{};
+    uint8_t *stub_;
 
     // We store the prologue bytes of the original function at the end of our stub
     // To avoid a circular loop where inside our hook we call the original function (which would call our hook again)
     // we can store the address and cast this to a callable so we can std::invoke it
-    void *originalBytesAddress_{nullptr};
+    void *originalBytesAddress_;
+
+    // Bytes we overwrite with our trampoline
+    std::vector<uint8_t> originalBytes_{};
 };
 
-} // namespace YAHL
+} // namespace YAHL::Impl
