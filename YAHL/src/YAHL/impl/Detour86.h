@@ -39,6 +39,9 @@ class Detour86 {
         : oFunc_(originalFunction), hFunc_(hookFunction), numBytesToHook_(numBytesToHook),
           stub_(nullptr) {}
 
+    Detour86(const Detour86 &) = delete;    // Copy constructor
+    Detour86(Detour86 &&) = delete;         // Move constructor
+
     bool Enable() {
         if (enabled_) {
             return true;
@@ -83,11 +86,9 @@ class Detour86 {
         return true;
     }
 
-    template <typename... Args> auto CallOriginal(Args &&...args) {
-        using Callable = void (*)(Args...); // Create a callable type to cast the address we stored
-
+    template <typename Fn, typename... Args> auto CallOriginal(Args &&...args) {
         // Call the address at the end of our stub where we copied the original bytes
-        return std::invoke(std::forward<Callable>((Callable)originalBytesAddress_), std::forward<Args>(args)...);
+        return std::invoke(static_cast<Fn>(originalBytesAddress_), std::forward<Args>(args)...);
     }
 
   private:
@@ -137,8 +138,6 @@ class Detour86 {
 
     void WriteStub() {
         std::vector<uint8_t> ins{}; // Assembly instructions to write to the stub
-
-        // serialize(ins, AsmIns::Int3);
 
         // Push an additional argument to our hook
         // Each hook function gets a Detour* as it's first argument
@@ -221,14 +220,15 @@ class Detour86 {
     }
 
   private:
-    void *oFunc_ = nullptr;
-    void *hFunc_ = nullptr;
-    size_t numBytesToHook_ = 0;
+    bool enabled_{false};
 
-    bool enabled_ = false;
+    void *oFunc_{nullptr};
+    void *hFunc_{nullptr};
+
+    size_t numBytesToHook_{0};
 
     // Address of our allocated stub
-    uint8_t *stub_ = nullptr;
+    uint8_t *stub_{nullptr};
 
     // Bytes we overwrite with our trampoline
     std::vector<uint8_t> originalBytes_{};
@@ -236,7 +236,7 @@ class Detour86 {
     // We store the prologue bytes of the original function at the end of our stub
     // To avoid a circular loop where inside our hook we call the original function (which would call our hook again)
     // we can store the address and cast this to a callable so we can std::invoke it
-    void *originalBytesAddress_ = nullptr;
+    void *originalBytesAddress_{nullptr};
 };
 
 } // namespace YAHL

@@ -20,14 +20,15 @@ DLLEXPORT void MeaningOfLife(Life &life, int a) {
 }
 
 // Generate an unknowable secret number
-DLLEXPORT float SecretRandomNumber() {
+DLLEXPORT float SecretNumber() {
     float secretNumber = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
     
     return secretNumber;
 }
 
 int main(int argc, char *argv[]) {
-    srand((unsigned int)time(NULL));
+    //srand((unsigned int)time(NULL));
+    srand(1);
 
     Life life{};
 
@@ -39,7 +40,11 @@ int main(int argc, char *argv[]) {
         }
 
         MeaningOfLife(life, 1);
-        Sleep(1000);
+
+        auto secret = SecretNumber();
+        std::cout << "[SecretNumber ] Shhhhhhh....don't tell anyone the secret was " << secret << std::endl;
+
+        Sleep(3000);
     }
 
     return 0;

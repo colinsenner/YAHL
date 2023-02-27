@@ -3,13 +3,14 @@
 #include <Windows.h>
 #include <iostream>
 
-struct Life {
+struct MockLife {
     int a;
 };
 
 // Calling convention for this function
 using fpIsCheating = bool(__cdecl *)();
-using fpMeaningOfLife = void(__cdecl *)(Life &, int);
+using fpMeaningOfLife = void(__cdecl *)(MockLife &, int);
+using fpSecretNumber = float (*)();
 
 // Don't call the original and return false
 bool hIsCheating(YAHL::Detour86 &detour) {
@@ -17,17 +18,19 @@ bool hIsCheating(YAHL::Detour86 &detour) {
 }
 
 // Change the a argument to be 42
-void hMeaningOfLife(YAHL::Detour86 &detour, Life &life, int a) {
-    detour.CallOriginal(life, 42);
+void hMeaningOfLife(YAHL::Detour86 &detour, MockLife &life, int a) {
+    detour.CallOriginal<fpMeaningOfLife>(life, 42);
 
     return;
 }
 
-//
-float hSecretRandomNumber(YAHL::Detour86 &detour) {
-    float secretNumber = detour.CallOriginal();
+// Get the secret number from the client and return a modified version of it
+float hSecretNumber(YAHL::Detour86 &detour) {
+    auto secretNumber = detour.CallOriginal<fpSecretNumber>();
 
-    return secretNumber;
+    std::cout << "Obtained the secret number: " << secretNumber << " I'm going to add 1 to it and return it instead..." << std::endl;
+
+    return secretNumber + 1;
 }
 
 void Example(void *hDll) {
@@ -51,6 +54,17 @@ void Example(void *hDll) {
 
     if (!detour2.Enable()) {
         std::cout << "Problem enabling detour2!\n";
+    }
+
+    //
+    // Hook the SecretNumber function
+    //
+    auto pSecretNumber = (fpMeaningOfLife)GetProcAddress(GetModuleHandle(NULL), "SecretNumber");
+
+    YAHL::Detour86 detour3(pSecretNumber, &hSecretNumber, 10);
+
+    if (!detour3.Enable()) {
+        std::cout << "Problem enabling detour3!\n";
     }
 
     while (true) {
