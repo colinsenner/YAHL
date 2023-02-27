@@ -10,8 +10,8 @@ struct Life {
 // Function pointers for the functions we're hooking
 // We provide these so the compiler knows what value is
 // returned from the original function
-using fpIsCheating = bool(__cdecl *)();
-using fpMeaningOfLife = void(__cdecl *)(Life &, int);
+using fpIsCheating = bool(*)();
+using fpMeaningOfLife = void(*)(Life &, int);
 using fpSecretNumber = float (*)();
 using fpCallConvention = int (*)(int, int);
 
