@@ -29,9 +29,9 @@ class Detour86 {
         : enabled_(false), oFunc_(originalFunction), hFunc_(hookFunction), numBytesToHook_(numBytesToHook),
           stub_(nullptr), originalBytesAddress_(nullptr) {}
 
-    Detour86(const Detour86 &) = delete; // Copy constructor
-    Detour86(Detour86 &&) = delete;      // Move constructor
-
+    Detour86(const Detour86 &) = delete;                 // Copy constructor
+    Detour86(Detour86 &&) = delete;                      // Move constructor
+    Detour86 &operator=(const Detour86 &other) = delete; // Copy assignment
     ~Detour86() { Disable(); }
 
     bool Enable() {
@@ -221,7 +221,7 @@ class Detour86 {
     void *oFunc_;
     void *hFunc_;
 
-    size_t numBytesToHook_;
+    uint32_t numBytesToHook_;
 
     // Address of our allocated stub
     uint8_t *stub_;

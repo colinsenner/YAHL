@@ -10,8 +10,8 @@ struct Life {
 // Function pointers for the functions we're hooking
 // We provide these so the compiler knows what value is
 // returned from the original function
-using fpIsCheating = bool(*)();
-using fpMeaningOfLife = void(*)(Life &, int);
+using fpIsCheating = bool (*)();
+using fpMeaningOfLife = void (*)(Life &, int);
 using fpSecretNumber = float (*)();
 using fpCallConvention = int (*)(int, int);
 
@@ -37,7 +37,7 @@ float hSecretNumber(YAHL::Detour &detour) {
 }
 
 // This case is a bit special, our original function is stdcall
-int hCallConvention(YAHL::Detour &detour, void* returnAddress, int a, int b) {
+int hCallConvention(YAHL::Detour &detour, void *returnAddress, int a, int b) {
     auto sum = detour.CallOriginal<fpCallConvention>(a, b);
 
     std::cout << "I'm a hooked stdcall function. I called the original and got back " << sum << std::endl;
